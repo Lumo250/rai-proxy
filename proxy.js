@@ -3,7 +3,7 @@ const fetch = require("node-fetch");
 const cors = require("cors");
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 
 app.use(cors());
 
@@ -31,7 +31,9 @@ app.get("/resolve", async (req, res) => {
   try {
     const response = await fetch(targetUrl, {
       headers: {
-        "User-Agent": "HbbTV/1.6.1"
+        "User-Agent": "HbbTV/1.6.1",
+        "Referer": "https://www.raiplay.it/",
+        "Origin": "https://www.raiplay.it"
       },
       redirect: "follow"
     });
@@ -51,3 +53,4 @@ app.get("/resolve", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`✅ Proxy attivo su porta ${PORT}`);
 });
+
