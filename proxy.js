@@ -29,6 +29,7 @@ app.get("/resolve", async (req, res) => {
   }
 
   try {
+    // Richiedo il link di streaming effettivo
     const response = await fetch(targetUrl, {
       headers: {
         "User-Agent": "HbbTV/1.6.1",
@@ -44,9 +45,46 @@ app.get("/resolve", async (req, res) => {
       return res.status(500).json({ error: "URL finale non valido", finalUrl });
     }
 
-    return res.json({ streamUrl: finalUrl });
+    // Genero un file M3U modificato che punta al proxy stesso
+    const proxyUrl = `${req.protocol}://${req.get('host')}/proxyStream?stream=${encodeURIComponent(finalUrl)}`;
+
+    const m3uContent = `#EXTM3U
+#EXTINF:-1 tvg-logo="http://odmsto.com/uploads/tv_image/sm/rai-2-bobi5do2jjqa.png" group-title="Canali RAI",Rai 2
+${proxyUrl}
+`;
+
+    res.setHeader('Content-Type', 'application/x-mpegURL');
+    return res.send(m3uContent);
   } catch (err) {
     return res.status(500).json({ error: "Errore durante la richiesta", details: err.message });
+  }
+});
+
+// Endpoint per proxy dello streaming vero
+app.get("/proxyStream", async (req, res) => {
+  const streamUrl = req.query.stream;
+  if (!streamUrl || !streamUrl.startsWith("http")) {
+    return res.status(400).send("URL stream mancante o non valido");
+  }
+
+  try {
+    const response = await fetch(streamUrl, {
+      headers: {
+        "User-Agent": "HbbTV/1.6.1",
+        "Referer": "https://www.raiplay.it/",
+        "Origin": "https://www.raiplay.it"
+      },
+      redirect: "follow"
+    });
+
+    // Copio gli headers importanti per il flusso video
+    res.setHeader("Content-Type", response.headers.get("content-type") || "application/octet-stream");
+    res.setHeader("Cache-Control", "no-cache");
+    
+    // Stream della risposta al client
+    response.body.pipe(res);
+  } catch (err) {
+    return res.status(500).send("Errore nel proxy dello stream: " + err.message);
   }
 });
 
